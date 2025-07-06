@@ -1,4 +1,5 @@
 import streamlit as st
+import time
 
 # Título de la app
 st.markdown("<h1 style='text-align: center; color: #4CAF50;'>Reserva de Canchas</h1>", unsafe_allow_html=True)
@@ -9,39 +10,55 @@ st.markdown("<h3 style='text-align: center; color: #FF5733;'>¡Bienvenido al sis
 # Crear un formulario de login
 st.header("Iniciar sesión")
 
-# Selector de perfil con botones de opción
+# Selección de perfil con botones de opción
 perfil = st.radio("Selecciona tu perfil", ["Usuario", "Administrador"])
 
-# Inputs para usuario y contraseña con estilo
-username = st.text_input("Usuario", placeholder="Ingresa tu nombre de usuario").lower()  # Convertimos el input a minúsculas
-password = st.text_input("Contraseña", type="password", placeholder="Ingresa tu contraseña")
+# Intentos de login y tiempo de bloqueo
+if "intentos" not in st.session_state:
+    st.session_state.intentos = 0  # Inicializamos los intentos
+if "bloqueado" not in st.session_state:
+    st.session_state.bloqueado = False  # Inicializamos el bloqueo
 
-# Credenciales para cada perfil
-usuarios = {
-    "user": "1234",  # Usuario normal
-    "admin": "1234"  # Admin
-}
+# Si está bloqueado, mostramos un mensaje y bloqueamos la entrada de usuario y contraseña
+if st.session_state.bloqueado:
+    st.warning("Has alcanzado el límite de intentos fallidos. Por favor espera 1 minuto.")
+    # Deshabilitar los campos de entrada
+    st.text_input("Usuario", disabled=True)
+    st.text_input("Contraseña", type="password", disabled=True)
+    time.sleep(60)  # Espera 1 minuto
+    st.session_state.bloqueado = False  # Después de 1 minuto, desbloqueamos los campos
+else:
+    # Si no está bloqueado, seguimos con el proceso de login normal
+    username = st.text_input("Usuario", placeholder="Ingresa tu nombre de usuario").lower()  # Convertimos el input a minúsculas
+    password = st.text_input("Contraseña", type="password", placeholder="Ingresa tu contraseña")
 
-# Variable para guardar el estado del login
-login_successful = False
+    # Credenciales para cada perfil
+    usuarios = {
+        "user": "1234",  # Usuario normal
+        "admin": "1234"  # Admin
+    }
 
-# Validación de login según el perfil seleccionado
-if st.button("Iniciar sesión"):
-    # Comprobamos si el usuario y la contraseña son correctos
-    if perfil == "Usuario" and username == "user" and password == usuarios["user"]:
-        st.success("¡Bienvenido Usuario!")
-        login_successful = True
-    elif perfil == "Administrador" and username == "admin" and password == usuarios["admin"]:
-        st.success("¡Bienvenido Administrador!")
-        login_successful = True
-    else:
-        st.error("Usuario o Contraseña Incorrectos.")
-        # Limpiar los campos de texto para que el usuario pueda ingresar de nuevo
-        username = st.text_input("Usuario", placeholder="Ingresa tu nombre de usuario", key="username")
-        password = st.text_input("Contraseña", type="password", placeholder="Ingresa tu contraseña", key="password")
+    # Variable para guardar el estado del login
+    login_successful = False
+
+    # Validación de login según el perfil seleccionado
+    if st.button("Iniciar sesión"):
+        # Comprobamos si el usuario y la contraseña son correctos
+        if perfil == "Usuario" and username == "user" and password == usuarios["user"]:
+            st.success("¡Bienvenido Usuario!")
+            login_successful = True
+        elif perfil == "Administrador" and username == "admin" and password == usuarios["admin"]:
+            st.success("¡Bienvenido Administrador!")
+            login_successful = True
+        else:
+            st.error("Usuario o Contraseña Incorrectos.")
+            st.session_state.intentos += 1
+            # Si ya se han realizado 3 intentos fallidos
+            if st.session_state.intentos >= 3:
+                st.session_state.bloqueado = True  # Bloqueamos el acceso por 1 minuto
 
 # Redirigir a una página interna para el Usuario (si está logueado)
-if login_successful and perfil == "Usuario":
+if login_successful:
     # Página interna de selección de deporte para el Usuario
     st.subheader("Selecciona tu deporte")
 
@@ -71,3 +88,4 @@ if login_successful and perfil == "Usuario":
     for court in courts:
         st.subheader(f"Cancha: {court['name']}")
         st.write(f"Horarios disponibles: {court['available_hours']}")
+
