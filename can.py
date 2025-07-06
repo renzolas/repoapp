@@ -84,6 +84,12 @@ def select_deporte():
         st.subheader(f"Cancha: {court['name']}")
         st.write(f"Horarios disponibles: {court['available_hours']}")
 
+    # Colocar el botón de "Cerrar sesión" al final de esta página
+    if st.button("Cerrar sesión"):
+        st.session_state.logged_in = False
+        st.session_state.intentos = 0  # Resetear intentos cuando se cierre sesión
+        st.success("Has cerrado sesión exitosamente")
+
 # Función principal
 def main():
     # Si el usuario no está logueado, mostrar el login
@@ -91,15 +97,7 @@ def main():
         login()
     else:
         # Si el usuario está logueado, mostrar la página de selección de deporte
-        page = st.radio("Selecciona una opción", ["Seleccionar Deporte", "Cerrar sesión"])
-
-        if page == "Seleccionar Deporte":
-            select_deporte()
-        elif page == "Cerrar sesión":
-            st.session_state.logged_in = False
-            st.session_state.intentos = 0  # Resetear intentos cuando se cierre sesión
-            st.success("Has cerrado sesión exitosamente")
+        select_deporte()
 
 # Ejecutar la aplicación
 main()
-
