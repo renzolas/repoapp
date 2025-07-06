@@ -1,15 +1,10 @@
 import streamlit as st
-from PIL import Image
 
-# Título de la app
-st.title("Sistema de Reserva de Canchas Deportivas")
+# Título de la app con estilo
+st.markdown("<h1 style='text-align: center; color: #4CAF50;'>Sistema de Reserva de Canchas Deportivas</h1>", unsafe_allow_html=True)
 
-# Agregar imagen de fondo
-img = Image.open("fondo.jpg")  # Asegúrate de tener la imagen en la carpeta de tu proyecto
-st.image(img, use_column_width=True)
-
-# Encabezado con un diseño bonito
-st.markdown("<h2 style='text-align: center; color: blue;'>¡Bienvenido al sistema de reservas!</h2>", unsafe_allow_html=True)
+# Encabezado con formato atractivo
+st.markdown("<h2 style='text-align: center; color: #FF5733;'>¡Bienvenido al sistema de reservas!</h2>", unsafe_allow_html=True)
 
 # Crear un formulario de login
 st.header("Iniciar sesión")
@@ -43,7 +38,7 @@ if st.button("Iniciar sesión"):
 # Mostrar deportes y canchas disponibles (sólo si está logueado como Usuario)
 if (username == "user" and password == "1234"):
     # Selección de deporte
-    deporte = st.selectbox("Selecciona tu deporte", ["Fútbol", "Tenis", "Pádel"])
+    deporte = st.selectbox("Selecciona tu deporte", ["Fútbol", "Tenis", "Pádel"], index=0)
 
     # Lógica para mostrar las canchas según el deporte seleccionado
     if deporte == "Fútbol":
@@ -69,6 +64,7 @@ if (username == "user" and password == "1234"):
     for court in courts:
         st.subheader(f"Cancha: {court['name']}")
         st.write(f"Horarios disponibles: {court['available_hours']}")
+
 
 
 
