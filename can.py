@@ -40,9 +40,11 @@ if st.button("Iniciar sesión"):
         username = st.text_input("Usuario", placeholder="Ingresa tu nombre de usuario", key="username")
         password = st.text_input("Contraseña", type="password", placeholder="Ingresa tu contraseña", key="password")
 
-# Mostrar deportes y canchas disponibles (sólo si está logueado como Usuario)
-if login_successful:
-    # Selección de deporte
+# Redirigir a una página interna para el Usuario (si está logueado)
+if login_successful and perfil == "Usuario":
+    # Página interna de selección de deporte para el Usuario
+    st.subheader("Selecciona tu deporte")
+
     deporte = st.selectbox("Selecciona tu deporte", ["Fútbol", "Tenis", "Pádel"], index=0)
 
     # Lógica para mostrar las canchas según el deporte seleccionado
@@ -69,7 +71,3 @@ if login_successful:
     for court in courts:
         st.subheader(f"Cancha: {court['name']}")
         st.write(f"Horarios disponibles: {court['available_hours']}")
-
-
-
-
