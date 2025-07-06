@@ -13,7 +13,7 @@ st.header("Iniciar sesión")
 perfil = st.radio("Selecciona tu perfil", ["Usuario", "Administrador"])
 
 # Inputs para usuario y contraseña con estilo
-username = st.text_input("Usuario", placeholder="Ingresa tu nombre de usuario")
+username = st.text_input("Usuario", placeholder="Ingresa tu nombre de usuario").lower()  # Convertimos el input a minúsculas
 password = st.text_input("Contraseña", type="password", placeholder="Ingresa tu contraseña")
 
 # Credenciales para cada perfil
@@ -22,21 +22,26 @@ usuarios = {
     "admin": "1234"  # Admin
 }
 
+# Variable para guardar el estado del login
+login_successful = False
+
 # Validación de login según el perfil seleccionado
 if st.button("Iniciar sesión"):
+    # Comprobamos si el usuario y la contraseña son correctos
     if perfil == "Usuario" and username == "user" and password == usuarios["user"]:
         st.success("¡Bienvenido Usuario!")
-        st.write("Puedes ver y reservar las canchas disponibles.")
+        login_successful = True
     elif perfil == "Administrador" and username == "admin" and password == usuarios["admin"]:
         st.success("¡Bienvenido Administrador!")
-        st.write("Puedes gestionar las canchas y las reservas.")
-    elif username != "" and password != "":
-        st.error("Usuario o Contraseña Incorrectos.")
+        login_successful = True
     else:
-        st.warning("Por favor ingresa tus credenciales.")
+        st.error("Usuario o Contraseña Incorrectos.")
+        # Limpiar los campos de texto para que el usuario pueda ingresar de nuevo
+        username = st.text_input("Usuario", placeholder="Ingresa tu nombre de usuario", key="username")
+        password = st.text_input("Contraseña", type="password", placeholder="Ingresa tu contraseña", key="password")
 
 # Mostrar deportes y canchas disponibles (sólo si está logueado como Usuario)
-if (username == "user" and password == "1234"):
+if login_successful:
     # Selección de deporte
     deporte = st.selectbox("Selecciona tu deporte", ["Fútbol", "Tenis", "Pádel"], index=0)
 
