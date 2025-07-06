@@ -1,16 +1,16 @@
 import streamlit as st
 
-# Título de la app con estilo
-st.markdown("<h1 style='text-align: center; color: #4CAF50;'>Sistema de Reserva de Canchas Deportivas</h1>", unsafe_allow_html=True)
+# Título de la app
+st.markdown("<h1 style='text-align: center; color: #4CAF50;'>Reserva de Canchas</h1>", unsafe_allow_html=True)
 
 # Encabezado con formato atractivo
-st.markdown("<h2 style='text-align: center; color: #FF5733;'>¡Bienvenido al sistema de reservas!</h2>", unsafe_allow_html=True)
+st.markdown("<h3 style='text-align: center; color: #FF5733;'>¡Bienvenido al sistema de reservas!</h3>", unsafe_allow_html=True)
 
 # Crear un formulario de login
 st.header("Iniciar sesión")
 
-# Selector de perfil con colores
-perfil = st.selectbox("Selecciona tu perfil", ["Usuario", "Administrador"], index=0)
+# Selector de perfil con botones de opción
+perfil = st.radio("Selecciona tu perfil", ["Usuario", "Administrador"])
 
 # Inputs para usuario y contraseña con estilo
 username = st.text_input("Usuario", placeholder="Ingresa tu nombre de usuario")
