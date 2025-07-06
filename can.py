@@ -1,103 +1,206 @@
-import streamlit as st
-import time
+import os
+from flask import Flask, render_template, redirect, url_for, request, flash
+from flask_sqlalchemy import SQLAlchemy
+from flask_login import LoginManager, login_user, login_required, logout_user, current_user
+from werkzeug.security import generate_password_hash, check_password_hash
 
-# Título de la app
-st.markdown("<h1 style='text-align: center; color: #4CAF50;'>Reserva de Canchas</h1>", unsafe_allow_html=True)
+# Configuración
+app = Flask(__name__)
+app.config['SECRET_KEY'] = os.urandom(24)
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///reservas.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db = SQLAlchemy(app)
 
-# Encabezado con formato atractivo
-st.markdown("<h3 style='text-align: center; color: #FF5733;'>¡Bienvenido al sistema de reservas!</h3>", unsafe_allow_html=True)
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
 
-# Inicializar session_state
-if "intentos" not in st.session_state:
-    st.session_state.intentos = 0  # Inicializamos los intentos
-if "bloqueado" not in st.session_state:
-    st.session_state.bloqueado = False  # Inicializamos el bloqueo
-if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False  # Mantener el estado de login
+# Modelos de Base de Datos
+class Usuario(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    nombre = db.Column(db.String(100), nullable=False)
+    email = db.Column(db.String(100), unique=True, nullable=False)
+    contraseña = db.Column(db.String(100), nullable=False)
+    tipo_usuario = db.Column(db.String(10), nullable=False)  # admin o usuario
 
-# Función para mostrar el login
+class Deporte(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    nombre = db.Column(db.String(50), nullable=False)
+
+class Cancha(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    nombre = db.Column(db.String(100), nullable=False)
+    direccion = db.Column(db.String(200), nullable=False)
+    id_deporte = db.Column(db.Integer, db.ForeignKey('deporte.id'), nullable=False)
+    deporte = db.relationship('Deporte', backref=db.backref('canchas', lazy=True))
+
+class Reserva(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    id_usuario = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=False)
+    id_cancha = db.Column(db.Integer, db.ForeignKey('cancha.id'), nullable=False)
+    fecha_reserva = db.Column(db.String(50), nullable=False)
+    hora_reserva = db.Column(db.String(50), nullable=False)
+    estado = db.Column(db.String(10), default='confirmada')  # confirmada o cancelada
+
+# Función para cargar usuario
+@login_manager.user_loader
+def load_user(user_id):
+    return Usuario.query.get(int(user_id))
+
+# Rutas
+@app.route('/')
+def index():
+    return render_template('login.html')
+
+@app.route('/login', methods=['POST', 'GET'])
 def login():
-    st.header("Iniciar sesión")
-
-    # Selección de perfil con botones de opción
-    perfil = st.radio("Selecciona tu perfil", ["Usuario", "Administrador"])
-
-    # Inputs para usuario y contraseña con estilo
-    username = st.text_input("Usuario", placeholder="Ingresa tu nombre de usuario").lower()  # Convertimos el input a minúsculas
-    password = st.text_input("Contraseña", type="password", placeholder="Ingresa tu contraseña")
-
-    # Credenciales para cada perfil
-    usuarios = {
-        "user": "1234",  # Usuario normal
-        "admin": "1234"  # Admin
-    }
-
-    # Validación de login según el perfil seleccionado
-    if st.button("Iniciar sesión"):
-        if st.session_state.intentos >= 3:
-            st.warning("Has alcanzado el límite de intentos fallidos. Por favor espera 1 minuto.")
-            st.session_state.bloqueado = True
-            time.sleep(60)  # Espera 1 minuto
-            st.session_state.intentos = 0  # Reiniciar intentos después de bloquear
-            st.session_state.bloqueado = False  # Desbloqueamos
-            return
-        if perfil == "Usuario" and username == "user" and password == usuarios["user"]:
-            st.success("¡Bienvenido Usuario!")
-            st.session_state.logged_in = True
-            st.session_state.intentos = 0  # Reseteamos los intentos
-        elif perfil == "Administrador" and username == "admin" and password == usuarios["admin"]:
-            st.success("¡Bienvenido Administrador!")
-            st.session_state.logged_in = True
-            st.session_state.intentos = 0  # Reseteamos los intentos
+    if request.method == 'POST':
+        email = request.form['email']
+        contraseña = request.form['contraseña']
+        usuario = Usuario.query.filter_by(email=email).first()
+        if usuario and check_password_hash(usuario.contraseña, contraseña):
+            login_user(usuario)
+            return redirect(url_for('select_sport'))
         else:
-            st.error("Usuario o Contraseña Incorrectos.")
-            st.session_state.intentos += 1  # Aumentamos el contador de intentos
+            flash("Credenciales inválidas", 'danger')
+    return render_template('login.html')
 
-# Función para seleccionar deporte
-def select_deporte():
-    st.subheader("Selecciona tu deporte")
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for('index'))
 
-    deporte = st.selectbox("Selecciona tu deporte", ["Fútbol", "Tenis", "Pádel"], index=0)
+@app.route('/select_sport', methods=['GET', 'POST'])
+@login_required
+def select_sport():
+    if request.method == 'POST':
+        deporte_id = request.form['deporte']
+        return redirect(url_for('select_court', deporte_id=deporte_id))
 
-    # Lógica para mostrar las canchas según el deporte seleccionado
-    if deporte == "Fútbol":
-        st.header("Canchas de Fútbol Disponibles")
-        courts = [
-            {"name": "Cancha de Fútbol 1", "available_hours": "09:00, 10:00, 11:00"},
-            {"name": "Cancha de Fútbol 2", "available_hours": "12:00, 13:00, 14:00"}
-        ]
-    elif deporte == "Tenis":
-        st.header("Canchas de Tenis Disponibles")
-        courts = [
-            {"name": "Cancha de Tenis 1", "available_hours": "15:00, 16:00, 17:00"},
-            {"name": "Cancha de Tenis 2", "available_hours": "18:00, 19:00, 20:00"}
-        ]
-    elif deporte == "Pádel":
-        st.header("Canchas de Pádel Disponibles")
-        courts = [
-            {"name": "Cancha de Pádel 1", "available_hours": "09:00, 10:00, 11:00"},
-            {"name": "Cancha de Pádel 2", "available_hours": "14:00, 15:00, 16:00"}
-        ]
-    
-    # Mostrar las canchas disponibles según el deporte seleccionado
-    for court in courts:
-        st.subheader(f"Cancha: {court['name']}")
-        st.write(f"Horarios disponibles: {court['available_hours']}")
+    deportes = Deporte.query.all()
+    return render_template('select_sport.html', deportes=deportes)
 
-    # Colocar el botón de "Cerrar sesión" al final de esta página
-    if st.button("Cerrar sesión"):
-        st.session_state.logged_in = False
-        st.session_state.intentos = 0  # Resetear intentos cuando se cierre sesión
-        st.success("Has cerrado sesión exitosamente")
+@app.route('/select_court/<int:deporte_id>', methods=['GET', 'POST'])
+@login_required
+def select_court(deporte_id):
+    if request.method == 'POST':
+        cancha_id = request.form['cancha']
+        fecha_reserva = request.form['fecha']
+        hora_reserva = request.form['hora']
+        
+        reserva = Reserva(id_usuario=current_user.id, id_cancha=cancha_id,
+                          fecha_reserva=fecha_reserva, hora_reserva=hora_reserva)
+        db.session.add(reserva)
+        db.session.commit()
+        flash('Reserva confirmada', 'success')
+        return redirect(url_for('dashboard'))
 
-# Función principal
-def main():
-    # Si el usuario no está logueado, mostrar el login
-    if not st.session_state.logged_in:
-        login()
-    else:
-        # Si el usuario está logueado, mostrar la página de selección de deporte
-        select_deporte()
+    canchas = Cancha.query.filter_by(id_deporte=deporte_id).all()
+    return render_template('select_court.html', canchas=canchas)
 
-# Ejecutar la aplicación
-main()
+@app.route('/dashboard')
+@login_required
+def dashboard():
+    reservas = Reserva.query.filter_by(id_usuario=current_user.id).all()
+    return render_template('dashboard.html', reservas=reservas)
+
+# Iniciar la aplicación
+if __name__ == '__main__':
+    app.run(debug=True)
+
+# Archivos de plantillas HTML
+
+html_login = """
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login</title>
+</head>
+<body>
+    <h2>Iniciar sesión</h2>
+    <form action="/login" method="POST">
+        <label for="email">Correo electrónico:</label>
+        <input type="email" name="email" required><br><br>
+        <label for="contraseña">Contraseña:</label>
+        <input type="password" name="contraseña" required><br><br>
+        <button type="submit">Iniciar sesión</button>
+    </form>
+    <p><a href="#">Olvidé mi contraseña</a></p>
+</body>
+</html>
+"""
+
+html_select_sport = """
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Selecciona un deporte</title>
+</head>
+<body>
+    <h2>Selecciona un deporte</h2>
+    <form action="/select_sport" method="POST">
+        {% for deporte in deportes %}
+            <button type="submit" name="deporte" value="{{ deporte.id }}">{{ deporte.nombre }}</button><br><br>
+        {% endfor %}
+    </form>
+</body>
+</html>
+"""
+
+html_select_court = """
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Selecciona una cancha</title>
+</head>
+<body>
+    <h2>Selecciona una cancha</h2>
+    <form action="/select_court/{{ deporte_id }}" method="POST">
+        {% for cancha in canchas %}
+            <button type="submit" name="cancha" value="{{ cancha.id }}">{{ cancha.nombre }} - {{ cancha.direccion }}</button><br><br>
+        {% endfor %}
+        <input type="date" name="fecha" required>
+        <input type="time" name="hora" required><br><br>
+        <button type="submit">Reservar</button>
+    </form>
+</body>
+</html>
+"""
+
+html_dashboard = """
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mis Reservas</title>
+</head>
+<body>
+    <h2>Mis Reservas</h2>
+    <table>
+        <tr>
+            <th>Cancha</th>
+            <th>Fecha</th>
+            <th>Hora</th>
+            <th>Estado</th>
+        </tr>
+        {% for reserva in reservas %}
+            <tr>
+                <td>{{ reserva.cancha.nombre }}</td>
+                <td>{{ reserva.fecha_reserva }}</td>
+                <td>{{ reserva.hora_reserva }}</td>
+                <td>{{ reserva.estado }}</td>
+            </tr>
+        {% endfor %}
+    </table>
+</body>
+</html>
+"""
+
